@@ -29,7 +29,6 @@ options=(
     "temp:Monitor temperature"
     "fish:Edit Fish config"
     "edit:Edit utility script"
-    "input-debug:Debug input events"
     "mvup:Move files up"
     "backup:Create system backup"
     "st:Run speed test"
@@ -44,8 +43,14 @@ options=(
     "gdm:Restart GDM"
     "keybind-set:Set custom keybindings"
     "generate-fish:Generate Fish config"
-    "audio-flicker:Bluetooth on/of headset"
+    "audio-flicker:Bluetooth on/off headset"
+    "repolist:List repositories"
+    "reporemove:Clean repositories"
+    "extract:Extract compressed files"
+    "dnfregenerate:Regenerate DNF configuration"
+    "gui:Use a graphical uer interface"
 )
+
 
 option=$1
 
@@ -116,16 +121,17 @@ backupScript(){
 }
 
 speedTestScript(){
-    speedtest-cli
+    $term "speedtest-cli"
 }
 
 ipColorScript(){
-    ip -c a
+    ip -c a | awk '/^[0-9]+: / {print $2} /^[[:space:]]+inet / {print $2}'
 }
 
 updateScript(){
     # update pc
-    $term "$a timeshift --create
+    $term "
+        $a timeshift --create
         $a dnf update --refresh
         $a dnf autoremove
         flatpak update
@@ -190,6 +196,9 @@ keybindScript(){
     
     # Add Super+Shift+K to kill music player
     add_keybinding 4 "Bluetooth on/of headset" "$location audio-flicker" "<Super><Shift>b"
+    
+    # Add Super+Shift+G to start util gui
+    add_keybinding 5 "util gui" "$location gui" "<Super><Shift>g"
     
     # Define the list of custom keybindings
     custom_keybindings="["
@@ -264,16 +273,10 @@ bluetoothAudioReconnectScript(){
     bluetoothctl connect 28:6F:40:13:59:98
 }
 
-repoListScript(){
-    
-    # Iterate over each file in /etc/yum.repos.d/ directory
+repoListScript() {
     for file in /etc/yum.repos.d/*; do
-        
-        # Check if the file exists and is readable
         if [ -f "$file" ] && [ -r "$file" ]; then
-            # Read each line in the file
             while IFS= read -r line; do
-                # Check if the line contains braces
                 if [[ $line == *"["* || $line == *"]"* ]]; then
                     echo "$line"
                 fi
@@ -281,9 +284,7 @@ repoListScript(){
         else
             echo "Cannot read $file"
         fi
-        
     done
-    
 }
 
 repocleanScript(){
@@ -291,25 +292,15 @@ repocleanScript(){
 }
 
 extractScript() {
-    # Extract all compressed files in the current directory
-    
-    # List all files except directories and the script itself
     files=$(find . -maxdepth 1 -type f ! -name 'extract.sh')
-    
-    # Loop through each file
     for file in $files; do
-        # Check if the file is compressed
         mimetype=$(file -b --mime-type "$file")
         case $mimetype in
             application/zip)
                 echo "Extracting $file ..."
                 unzip -q "$file"
             ;;
-            application/x-rar-compressed)
-                echo "Extracting $file ..."
-                unrar x "$file"
-            ;;
-            application/x-rar)
+            application/x-rar-compressed | application/x-rar)
                 echo "Extracting $file ..."
                 unrar x "$file"
             ;;
@@ -319,15 +310,13 @@ extractScript() {
             ;;
             *)
                 echo "Skipping $file - not a compressed file."
-                continue
             ;;
         esac
     done
 }
 
 dnfRemakeScript() {
-   $a bash <<EOF
-cat <<CONF > /etc/dnf/dnf.conf
+    cat <<CONF > /etc/dnf/dnf.conf
 [main]
 gpgcheck=True
 installonly_limit=3
@@ -340,104 +329,167 @@ max_parallel_downloads=5
 fastestmirror=True
 defaultyes=True
 CONF
-EOF
 }
 
-
-
+zenityScript() {
+    # Define options array with names and descriptions for Zenity UI
+    options=(
+        "Play Music Playlist:Play music playlist"
+        "Kill Music Player:Kill music player"
+        "Restart Media Services:Restart media services"
+        "Media Debug:Debug media issues"
+        "Open File Manager:Open file manager"
+        "Open Terminal:Open terminal"
+        "Monitor Temperature:Monitor temperature"
+        "Edit Fish Config:Edit Fish config"
+        "Edit Utility Script:Edit utility script"
+        "Create System Backup:Create system backup"
+        "Run Network Speed Test:Run Network speed test"
+        "Show IP Addresses:Show IP addresses"
+        "Update System:Update system"
+        "Sync System:Sync system"
+        "Clean System (sudo):Clean system (sudo)"
+        "Clean System:Clean system"
+        "Sync OneDrive:Sync OneDrive"
+        "Connect to Cisco Switch:Connect to Cisco switch"
+        "Reload Fish Config:Reload Fish config"
+        "Restart GDM:Restart GDM"
+        "Set Custom Keybindings:Set custom keybindings"
+        "Generate Fish Config:Generate Fish config"
+        "Bluetooth On/Off Headset:Bluetooth on/off headset"
+        "Repo List:List repositories"
+        "Repo Clean:Clean repositories"
+        "Extract Compressed Files:Extract compressed files"
+        "Regenerate DNF Configuration:Regenerate DNF configuration"
+    )
+    
+    # Extract options and descriptions for Zenity UI
+    actions=()
+    descriptions=()
+    for opt in "${options[@]}"; do
+        name=$(echo "$opt" | cut -d':' -f1)
+        description=$(echo "$opt" | cut -d':' -f2)
+        actions+=("$name")
+        descriptions+=("$description")
+    done
+    
+    # Show the Zenity list dialog with default size
+    choice=$(zenity --list \
+        --title="Utility Script" \
+        --text="Select an action:" \
+        --column="Action" "${actions[@]}" \
+        --width=500 \
+        --height=500 \
+    --cancel-label="Cancel")
+    
+    # Check the selected action and execute the corresponding function
+    case "$choice" in
+        "Play Music Playlist")
+        musicScript;;
+        "Kill Music Player")
+        kill-musicScript;;
+        "Restart Media Services")
+        restart-mediaScript;;
+        "Media Debug")
+        media-debugScript;;
+        "Open File Manager")
+        filesScript;;
+        "Open Terminal")
+        terminalScript;;
+        "Monitor Temperature")
+        tempScript;;
+        "Edit Fish Config")
+        fishsScript;;
+        "Edit Utility Script")
+        utilEditScript;;
+        "Create System Backup")
+        backupScript;;
+        "Run Speed Test")
+        speedTestScript;;
+        "Show IP Addresses")
+        ipColorScript;;
+        "Update System")
+        updateScript;;
+        "Clean System (sudo)")
+        bleachRootScript;;
+        "Clean System")
+        bleachScript;;
+        "Reload Fish Config")
+        fishReloadScript;;
+        "Restart GDM")
+        gnomeRestartScript;;
+        "Set Custom Keybindings")
+        keybindScript;;
+        "Generate Fish Config")
+        fishRemakeScript;;
+        "Bluetooth On/Off Headset")
+        bluetoothAudioReconnectScript;;
+        "Regenerate DNF Configuration")
+        dnfRemakeScript;;
+        
+    esac
+}
 
 # Execute chosen option
 case $option in
-    
     'help' )
-        usage
-    ;;
+    usage;;
     'music' )
-        musicScript
-    ;;
+    musicScript;;
     'kill-music' )
-        kill-musicScript
-    ;;
+    kill-musicScript;;
     'restart-media' )
-        restart-mediaScript
-    ;;
+    restart-mediaScript;;
     'media-debug')
-        media-debugScript
-    ;;
+    media-debugScript;;
     'files')
-        filesScript
-    ;;
+    filesScript;;
     'term')
-        terminalScript
-    ;;
+    terminalScript;;
     'temp')
-        tempScript
-    ;;
+    tempScript;;
     'fish')
-        fishsScript
-    ;;
+    fishsScript;;
     'edit')
-        utilEditScript
-    ;;
-    'mvup')
-        mvupScript
-    ;;
+    utilEditScript;;
     'backup')
-        backupScript
-    ;;
+    backupScript;;
     'st')
-        speedTestScript
-    ;;
+    speedTestScript;;
     'ipa')
-        ipColorScript
-    ;;
+    ipColorScript;;
     'update')
-        updateScript
-    ;;
+    updateScript;;
     'sync')
-        distroSyncScript
-    ;;
+    distroSyncScript;;
     'clean-root')
-        bleachRootScript
-    ;;
+    bleachRootScript;;
     'clean')
-        bleachScript
-    ;;
+    bleachScript;;
     'sy')
-        onedriveSyncScript
-    ;;
+    onedriveSyncScript;;
     'cisco')
-        comSwitchScript
-    ;;
+    comSwitchScript;;
     'fish-reload')
-        fishReloadScript
-    ;;
+    fishReloadScript;;
     'gdm')
-        gnomeRestartScript
-    ;;
+    gnomeRestartScript;;
     'keybind-set')
-        keybindScript
-    ;;
+    keybindScript;;
     'generate-fish')
-        fishRemakeScript
-    ;;
+    fishRemakeScript;;
     'audio-flicker')
-        bluetoothAudioReconnectScript
-    ;;
+    bluetoothAudioReconnectScript;;
     'repolist')
-        repoListScript
-    ;;
+    repoListScript;;
     'reporemove')
-        repocleanScript
-    ;;
+    repocleanScript;;
     'extract')
-        extractScript
-    ;;
+    extractScript;;
     'dnfregenerate')
-        dnfRemakeScript
-    ;;
-    * )
-        usage
-    ;;
+    dnfRemakeScript;;
+    'gui')
+    zenityScript;;
+    *)
+    usage;;
 esac
-
