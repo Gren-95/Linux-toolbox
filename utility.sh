@@ -42,6 +42,7 @@ options=(
     "sideload:Sideload sidestore to iPhone"
     "led:Ledvance smart home stuff"
     "slash:convert backslash to slash"
+    "fish-reload:Source fish config file"
     
 )
 option=$1
