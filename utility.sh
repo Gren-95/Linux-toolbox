@@ -52,9 +52,13 @@ a="sudo"
 term="gnome-terminal -- bash -c"
 editor="vim"
 location="/home/ghost/Documents/Code/Bash/utility.sh"
-sideloadUser="fossfrog@protonmail.com"
-sideloadPassword="U95976B40a95"
+sideloadUser=""
+sideloadPassword=""
+vpnUser=""
+vpnAddress=""
+vpnGroup=""
 
+btDevice="28:6F:40:13:59:98"
 
 # Function Definitions
 mediaRestart(){ systemctl --user restart wireplumber pipewire pipewire-pulse;}
@@ -68,8 +72,8 @@ rpgmCheats(){ git clone https://github.com/Gren-95/RPGM_Cheat_Menu.git && cp RPG
 ooklaSpeedTest(){ $term "speedtest-cli";}
 timeshiftBackup(){ $a timeshift --create; }
 fishReloadScript(){ fish -c "source ~/.config/fish/config.fish";}
-jeldwenVpnConnect(){ $term "$a openvpn --config /home/ghost/Documents/VPN/myvpn.ovpn";}
-headphoneReconnect(){ bluetoothctl disconnect 28:6F:40:13:59:98;bluetoothctl connect 28:6F:40:13:59:98;}
+jeldwenVpnConnect(){ $term "$a openconnect --user=$vpnUser $vpnAddress --authgroup=$vpnGroup";}
+headphoneReconnect(){ bluetoothctl disconnect $btDevice;bluetoothctl connect $btDevice;}
 systemUpdate(){ $term " $a timeshift --create && $a dnf update --refresh && $a dnf autoremove && flatpak update && flatpak remove --unused";}
 systemClean(){ echo "run bleachbit from gui first" && $a bleachbit --clean --preset && bleachbit --clean --preset; }
 
